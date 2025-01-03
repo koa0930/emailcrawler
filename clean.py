@@ -59,9 +59,19 @@ df.drop(columns=["EmailCrawler"], inplace=True)
 columns_order = (
     ["Name", "Address", "Phone", "Email", "Website"] +
     ["ABN", "Profession"] +
-    ["Internship", "Apprenticeship", "Traineeship", "WorkExperience", "JobOrJobs", "CareerOrCareers", "HROrHumanResources"] +
+    [
+        "InternshipOrInternships", 
+        "ApprenticeshipOrApprenticeships", 
+        "TraineeshipOrTraineeships", 
+        "WorkPlacement", 
+        "JobOrJobs", 
+        "CareerOrCareers", 
+        "HROrHumanResources", 
+        "Employment"
+    ] +
     [f"EmailCrawler {i + 1}" for i in range(max_columns)]
 )
+
 df = df[columns_order]
 
 # Save the updated DataFrame to a new CSV file

@@ -21,13 +21,14 @@ class CombinedSpider(scrapy.Spider):
     }
 
     CAREER_CATEGORIES = {
-        "Internship": ["internship", "internships", "work with us internship"],
-        "Apprenticeship": ["apprenticeship", "apprenticeships"],
-        "Traineeship": ["traineeship", "traineeships"],
-        "WorkExperience": ["work experience", "experience with us"],
-        "JobOrJobs": ["job", "jobs", "work with us", "career opportunities"],
-        "CareerOrCareers": ["career", "careers", "profession", "vocation", "occupation"],
-        "HROrHumanResources": ["HR", "human resources", "talent acquisition", "people operations"]
+        "InternshipOrInternships": ["internship", "internships", "work placement", "internships opportunities"],
+        "ApprenticeshipOrApprenticeships": ["apprenticeship", "apprenticeships", "apprenticeship programs"],
+        "TraineeshipOrTraineeships": ["traineeship", "traineeships", "traineeship opportunities"],
+        "HROrHumanResources": ["HR", "human resources", "HR department", "HR opportunities"],
+        "JobOrJobs": ["job", "jobs", "job opportunities", "career opportunities"],
+        "CareerOrCareers": ["career", "careers", "career paths", "career growth"],
+        "WorkPlacement": ["work placement", "placement opportunities", "placement program"],
+        "Employment": ["employment", "employments", "employment opportunities"]
     }
 
     def __init__(self, *args, **kwargs):
