@@ -2,13 +2,7 @@ import pandas as pd
 import os
 
 # Load the CSV file
-input_file = os.path.join(
-    r'C:\Users\koage\OneDrive\デスクトップ',
-    'Internship Asgn',
-    'github',
-    'dataWebScrapingIndeed',
-    'first_100_result.csv'
-)
+input_file = os.path.join(r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv')
 
 df = pd.read_csv(input_file)
 
@@ -75,13 +69,7 @@ columns_order = (
 df = df[columns_order]
 
 # Save the updated DataFrame to a new CSV file
-output_file = os.path.join(
-    r'C:\Users\koage\OneDrive\デスクトップ',
-    'Internship Asgn',
-    'github',
-    'dataWebScrapingIndeed',
-    'cleaned_first_100_result.csv'
-)
+output_file = os.path.join( r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv')
 os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
 df.to_csv(output_file, index=False)

@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 # Define the file path
-file_path = r'C:\Users\koage\OneDrive\デスクトップ\Internship Asgn\github\dataWebScrapingIndeed\email_scrapy\data\ndis_providers_part1.csv'
+file_path = r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv'
 
 # Load the CSV file
 df = pd.read_csv(file_path)

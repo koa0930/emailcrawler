@@ -37,15 +37,7 @@ class CombinedSpider(scrapy.Spider):
         self.data = None
 
     def start_requests(self):
-        input_file = os.path.join(
-            r'C:\Users\koage\OneDrive\デスクトップ',
-            'Internship Asgn',
-            'github',
-            'dataWebScrapingIndeed',
-            'email_scrapy',
-            'data',
-            'first_100.csv'
-        )
+        input_file = os.path.join(r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv')
         if not os.path.exists(input_file):
             self.logger.error(f"Input file not found: {input_file}")
             return
@@ -152,13 +144,7 @@ class CombinedSpider(scrapy.Spider):
 
     def closed(self, reason):
         """Save results to CSV on spider close."""
-        output_file = os.path.join(
-            r'C:\Users\koage\OneDrive\デスクトップ',
-            'Internship Asgn',
-            'github',
-            'dataWebScrapingIndeed',
-            'first_100_result.csv'
-        )
+        output_file = os.path.join(r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv')
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
         if self.results is not None and not self.results.empty:
