@@ -1,6 +1,8 @@
 name: Email Scraper Workflow
 
 on:
+  schedule:
+    - cron: '0 0 * * *' # Adjust the schedule as needed
   workflow_dispatch: # Allows manual triggering
 
 jobs:
@@ -24,20 +26,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas scrapy validators
 
-      # Step 4: Prepare environment
-      - name: Add input file and Google Drive credentials
-        env:
-          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+      # Step 4: Debug paths
+      - name: Debug Paths
         run: |
-          mkdir -p artifacts
-          echo "$GDRIVE_CREDENTIALS" > artifacts/credentials.json
+          pwd
+          ls -R
 
-      # Step 5: Run email scraping script (EmailToURL.py)
+      # Step 5: Run Email to URL Script
       - name: Run Email to URL Script
         run: |
           python ndisScrapy/EmailToURL.py
 
-      # Step 6: Run Scrapy spider to crawl websites
+      # Step 6: Run Scrapy Spider
       - name: Run Scrapy Spider
         run: |
           scrapy crawl combined_spider -o artifacts/500_scraped.csv --loglevel INFO
@@ -55,7 +55,7 @@ jobs:
           path: artifacts/500_updated.csv
 
       # Step 9: Debug paths and outputs
-      - name: Debug
+      - name: Debug Outputs
         run: |
           pwd
           ls -R
