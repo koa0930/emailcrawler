@@ -2,8 +2,8 @@ name: Email Scraper Workflow
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Adjust the schedule as needed
-  workflow_dispatch: # Allows manual triggering
+    - cron: '0 0 * * *' # Run daily at midnight UTC
+  workflow_dispatch:
 
 jobs:
   email-scraping:
@@ -20,44 +20,80 @@ jobs:
         with:
           python-version: '3.10'
 
-      # Step 3: Install Python dependencies
+      # Step 3: Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas scrapy validators
+          pip install pandas scrapy validators dropbox
 
-      # Step 4: Debug paths
-      - name: Debug Paths
+      # Step 4: Download file from Dropbox
+      - name: Download file from Dropbox
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
         run: |
-          echo "Current working directory:"
-          pwd
-          echo "List of files and folders in the current directory:"
-          ls -R
+          python - <<EOF
+          import dropbox
+          import os
+
+          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+          if not ACCESS_TOKEN:
+              raise ValueError("Dropbox Access Token is not set.")
+
+          dbx = dropbox.Dropbox(ACCESS_TOKEN)
+          DROPBOX_FILE_PATH = "/500.csv"
+          LOCAL_FILE_PATH = "500.csv"
+
+          try:
+              with open(LOCAL_FILE_PATH, "wb") as f:
+                  metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
+                  f.write(res.content)
+              print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
+          except Exception as e:
+              print(f"Error downloading file: {e}")
+              raise
+          EOF
 
       # Step 5: Run Email to URL Script
       - name: Run Email to URL Script
-        run: |
-          python EmailToURL.py
+        run: python EmailToURL.py
 
       # Step 6: Run Scrapy Spider
       - name: Run Scrapy Spider
-        run: |
-          scrapy crawl combined_spider -o artifacts/500_scraped.csv --loglevel INFO
+        run: scrapy crawl combined_spider -o artifacts/500_scraped.csv --loglevel INFO
 
       # Step 7: Clean the scraped data
       - name: Clean the scraped data
-        run: |
-          python clean.py
+        run: python clean.py
 
-      # Step 8: Upload cleaned CSV as artifact
+      # Step 8: Upload cleaned file back to Dropbox
+      - name: Upload cleaned file to Dropbox
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+        run: |
+          python - <<EOF
+          import dropbox
+          import os
+
+          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+          if not ACCESS_TOKEN:
+              raise ValueError("Dropbox Access Token is not set.")
+
+          dbx = dropbox.Dropbox(ACCESS_TOKEN)
+          LOCAL_FILE_PATH = "500_updated.csv"
+          DROPBOX_FILE_PATH = "/500_updated.csv"
+
+          try:
+              with open(LOCAL_FILE_PATH, "rb") as f:
+                  dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
+              print(f"Uploaded {LOCAL_FILE_PATH} to {DROPBOX_FILE_PATH}")
+          except Exception as e:
+              print(f"Error uploading file: {e}")
+              raise
+          EOF
+
+      # Step 9: Upload cleaned CSV to GitHub Artifact
       - name: Upload cleaned CSV to GitHub Artifact
         uses: actions/upload-artifact@v3
         with:
           name: cleaned-email-data
-          path: artifacts/500_updated.csv
-
-      # Step 9: Debug paths and outputs
-      - name: Debug Outputs
-        run: |
-          echo "Artifacts directory contents:"
-          ls -R artifacts
+          path: 500_updated.csv

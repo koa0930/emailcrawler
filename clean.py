@@ -1,3 +1,5 @@
+
+
 import pandas as pd
 import os
 
@@ -51,7 +53,7 @@ for i in range(max_columns):
 # Remove the old "EmailCrawler" column
 df.drop(columns=["EmailCrawler"], inplace=True)
 
-# Ensure `HR & Career Email`, `Info Email`, and `Other Email` columns exist
+# Ensure HR & Career Email, Info Email, and Other Email columns exist
 additional_email_columns = ["HR & Career Email", "Info Email", "Other Email"]
 for col in additional_email_columns:
     if col not in df.columns:
