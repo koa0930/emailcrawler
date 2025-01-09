@@ -28,7 +28,9 @@ jobs:
       # Step 4: Debug paths
       - name: Debug Paths
         run: |
+          echo "Current working directory:"
           pwd
+          echo "List of files and folders in the current directory:"
           ls -R
 
       # Step 5: Run Email to URL Script
@@ -56,5 +58,5 @@ jobs:
       # Step 9: Debug paths and outputs
       - name: Debug Outputs
         run: |
-          pwd
-          ls -R
+          echo "Artifacts directory contents:"
+          ls -R artifacts
