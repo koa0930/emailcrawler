@@ -1,0 +1,61 @@
+name: Email Scraper Workflow
+
+on:
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  email-scraping:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # Step 3: Install Python dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas scrapy validators
+
+      # Step 4: Prepare environment
+      - name: Add input file and Google Drive credentials
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+        run: |
+          mkdir -p artifacts
+          echo "$GDRIVE_CREDENTIALS" > artifacts/credentials.json
+
+      # Step 5: Run email scraping script (EmailToURL.py)
+      - name: Run Email to URL Script
+        run: |
+          python ndisScrapy/EmailToURL.py
+
+      # Step 6: Run Scrapy spider to crawl websites
+      - name: Run Scrapy Spider
+        run: |
+          scrapy crawl combined_spider -o artifacts/500_scraped.csv --loglevel INFO
+
+      # Step 7: Clean the scraped data
+      - name: Clean the scraped data
+        run: |
+          python ndisScrapy/clean.py
+
+      # Step 8: Upload cleaned CSV as artifact
+      - name: Upload cleaned CSV to GitHub Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: cleaned-email-data
+          path: artifacts/500_updated.csv
+
+      # Step 9: Debug paths and outputs
+      - name: Debug
+        run: |
+          pwd
+          ls -R
