@@ -1,7 +1,8 @@
 name: Email Scraper Workflow
 
 on:
-
+  schedule:
+    - cron: '0 0 * * *' # Adjust the schedule as needed
   workflow_dispatch: # Allows manual triggering
 
 jobs:
@@ -36,7 +37,7 @@ jobs:
       # Step 5: Run Email to URL Script
       - name: Run Email to URL Script
         run: |
-          python ndisScrapy/EmailToURL.py
+          python EmailToURL.py
 
       # Step 6: Run Scrapy Spider
       - name: Run Scrapy Spider
@@ -46,7 +47,7 @@ jobs:
       # Step 7: Clean the scraped data
       - name: Clean the scraped data
         run: |
-          python ndisScrapy/clean.py
+          python clean.py
 
       # Step 8: Upload cleaned CSV as artifact
       - name: Upload cleaned CSV to GitHub Artifact
