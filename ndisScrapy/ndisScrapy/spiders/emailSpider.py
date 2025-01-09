@@ -5,7 +5,6 @@ import validators
 from urllib.parse import urljoin
 import os
 
-
 class CombinedSpider(scrapy.Spider):
     name = "combined_spider"
 
@@ -37,7 +36,7 @@ class CombinedSpider(scrapy.Spider):
         self.data = None
 
     def start_requests(self):
-        input_file = os.path.join(r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv')
+        input_file = os.path.join(r"C:\Users\koage\Dropbox\Masatsugu Shimizu\emailcrawlerData\500.csv")
         if not os.path.exists(input_file):
             self.logger.error(f"Input file not found: {input_file}")
             return
@@ -48,6 +47,7 @@ class CombinedSpider(scrapy.Spider):
         for category in self.CAREER_CATEGORIES:
             self.results[category] = ''  # Add a column for each career category
         self.results['EmailCrawler'] = ''
+        self.results['Error'] = ''  # Add an Error column
 
         for index, row in self.data.iterrows():
             url = row.get('Website', None)
@@ -58,6 +58,7 @@ class CombinedSpider(scrapy.Spider):
                 self.logger.info(f"Skipping row {index}: Invalid or missing website.")
                 for category in self.CAREER_CATEGORIES:
                     self.results.at[index, category] = 'NO'
+                self.results.at[index, 'Error'] = 'Invalid or missing website'
                 continue
 
             yield scrapy.Request(
@@ -73,6 +74,10 @@ class CombinedSpider(scrapy.Spider):
         index = response.meta['index']
         website = response.meta['website']
 
+        if response.status != 200:
+            self.results.at[index, 'Error'] = f"Website error: {response.status}"
+            return
+
         # Check for career category keywords
         page_text = response.text.lower()
         for category, keywords in self.CAREER_CATEGORIES.items():
@@ -86,6 +91,7 @@ class CombinedSpider(scrapy.Spider):
         if emails_found:
             self.assign_emails(index, emails_found)
         else:
+            self.results.at[index, 'EmailCrawler'] = 'NA'
             self.logger.info(f"No emails found by fast spider for {website}. Retrying with Playwright.")
             yield scrapy.Request(
                 url=website,
@@ -100,10 +106,15 @@ class CombinedSpider(scrapy.Spider):
         index = response.meta['index']
         website = response.meta['website']
 
+        if response.status != 200:
+            self.results.at[index, 'Error'] = f"Website error: {response.status}"
+            return
+
         emails_found = self.extract_emails(response)
         if emails_found:
             self.assign_emails(index, emails_found)
         else:
+            self.results.at[index, 'EmailCrawler'] = 'NA'
             self.logger.info(f"No emails found by detailed spider for {website}.")
 
     def assign_emails(self, index, emails):
@@ -112,6 +123,7 @@ class CombinedSpider(scrapy.Spider):
         valid_emails = [email for email in emails if '@' in email]
         if not valid_emails:
             self.logger.info(f"No valid emails found for {website}.")
+            self.results.at[index, 'EmailCrawler'] = 'NA'
             return
 
         current_emails = self.results.at[index, 'EmailCrawler']
@@ -138,13 +150,14 @@ class CombinedSpider(scrapy.Spider):
     def error_handling(self, failure):
         """Handle errors."""
         index = failure.request.meta['index']
+        self.results.at[index, 'Error'] = f"Request failed: {failure.value}"
         for category in self.CAREER_CATEGORIES:
             self.results.at[index, category] = 'NO'
         self.logger.error(f"Request failed: {failure.request.url}. Error: {failure.value}")
 
     def closed(self, reason):
         """Save results to CSV on spider close."""
-        output_file = os.path.join(r'C:\shareCrawler\emailcrawler\data\ndis_providers_table.csv')
+        output_file = os.path.join(r"C:\Users\koage\Dropbox\Masatsugu Shimizu\emailcrawlerData\500.csv")
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
         if self.results is not None and not self.results.empty:
