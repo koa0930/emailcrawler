@@ -1,8 +1,7 @@
 name: Email Scraper Workflow
 
 on:
-  schedule:
-    - cron: '0 0 * * *' # Adjust the schedule as needed
+
   workflow_dispatch: # Allows manual triggering
 
 jobs:
