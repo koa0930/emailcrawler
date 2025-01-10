@@ -1,7 +1,8 @@
 name: Email Scraper Workflow
 
 on:
-
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight UTC
   workflow_dispatch:
 
 jobs:
@@ -27,6 +28,7 @@ jobs:
 
       # Step 4: Download file from Dropbox
       - name: Download file from Dropbox
+        id: download
         env:
           DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
         run: |
@@ -47,55 +49,19 @@ jobs:
                   metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
                   f.write(res.content)
               print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
-              print(f"::set-output name=down_file::{os.path.abspath(LOCAL_FILE_PATH)}")
           except Exception as e:
               print(f"Error downloading file: {e}")
               raise
           EOF
 
-      # Step 5: Run Email to URL Script
-      - name: Run Email to URL Script
-        env:
-          FILE_PATH: ${{ steps.download.outputs.down_file }}
-        run: python EmailToURL.py
-
-      # Step 6: Run Scrapy Crawler
-      - name: Run Scrapy Crawler
-        run: scrapy crawl combined_spider -o artifacts/500_scraped.csv --loglevel INFO
-
-      # Step 7: Clean the scraped data
-      - name: Clean the scraped data
-        run: python clean.py
-
-      # Step 8: Upload cleaned file back to Dropbox
-      - name: Upload file to Dropbox
-        env:
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+      # Step 5: Debugging step to check files in the directory
+      - name: List files in the working directory
         run: |
-          python - <<EOF
-          import dropbox
-          import os
+          echo "Listing all files in the working directory:"
+          ls -la
+          echo "Checking if 500.csv exists:"
+          [ -f 500.csv ] && echo "File 500.csv exists" || echo "File 500.csv does not exist"
 
-          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
-          if not ACCESS_TOKEN:
-              raise ValueError("Dropbox Access Token is not set.")
-
-          dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          LOCAL_FILE_PATH = "500_updated.csv"
-          DROPBOX_FILE_PATH = "/Masatsugu Shimizu/emailcrawlerData/500_updated.csv"
-
-          try:
-              with open(LOCAL_FILE_PATH, "rb") as f:
-                  dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
-              print(f"Uploaded {LOCAL_FILE_PATH} to {DROPBOX_FILE_PATH}")
-          except Exception as e:
-              print(f"Error uploading file: {e}")
-              raise
-          EOF
-
-      # Step 9: Upload cleaned CSV to GitHub Artifact (Optional)
-      - name: Upload cleaned CSV to GitHub Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: cleaned-email-data
-          path: 500_updated.csv
+      # Step 6: Run Email to URL Script
+      - name: Run Email to URL Script
+        run: python EmailToURL.py
