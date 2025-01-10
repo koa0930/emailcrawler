@@ -40,7 +40,7 @@ jobs:
               raise ValueError("Dropbox Access Token is not set.")
 
           dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          DROPBOX_FILE_PATH = "/500.csv"
+          DROPBOX_FILE_PATH = "/Masatsugu Shimizu/emailcrawlerData/500.csv"  # Use relative path in Dropbox
           LOCAL_FILE_PATH = "500.csv"
 
           try:
@@ -48,8 +48,11 @@ jobs:
                   metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
                   f.write(res.content)
               print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
+          except dropbox.exceptions.ApiError as e:
+              print(f"Error downloading file: {e}. Check if the file path '{DROPBOX_FILE_PATH}' exists.")
+              raise
           except Exception as e:
-              print(f"Error downloading file: {e}")
+              print(f"Unexpected error: {e}")
               raise
           EOF
 
@@ -80,14 +83,17 @@ jobs:
 
           dbx = dropbox.Dropbox(ACCESS_TOKEN)
           LOCAL_FILE_PATH = "500_updated.csv"
-          DROPBOX_FILE_PATH = "/500_updated.csv"
+          DROPBOX_FILE_PATH = "/Masatsugu Shimizu/emailcrawlerData/500_updated.csv"  # Use relative path in Dropbox
 
           try:
               with open(LOCAL_FILE_PATH, "rb") as f:
                   dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
               print(f"Uploaded {LOCAL_FILE_PATH} to {DROPBOX_FILE_PATH}")
+          except dropbox.exceptions.ApiError as e:
+              print(f"Error uploading file: {e}. Check if the file path '{DROPBOX_FILE_PATH}' exists.")
+              raise
           except Exception as e:
-              print(f"Error uploading file: {e}")
+              print(f"Unexpected error: {e}")
               raise
           EOF
 
