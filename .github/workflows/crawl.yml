@@ -1,9 +1,15 @@
-name: Email Scraper Workflow
+name: Dynamic Email Scraper Workflow
 
 on:
+  workflow_dispatch: # Allows manual trigger with custom inputs
+    inputs:
+      file_name:
+        description: 'Name of the file to process from Dropbox'
+        required: false
+        default: '500.csv'  # Default file name
+
   schedule:
     - cron: '0 0 * * *' # Run daily at midnight UTC
-  workflow_dispatch:
 
 jobs:
   email-scraping:
@@ -26,82 +32,52 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas scrapy validators dropbox
 
-      # Step 4: Download file from Dropbox
+      # Step 4: Set up dynamic file name
+      - name: Set file name
+        id: set-file-name
+        run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
+
+      # Step 5: Download file from Dropbox
       - name: Download file from Dropbox
         env:
           DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          FILE_NAME: ${{ env.FILE_NAME }}
         run: |
           python - <<EOF
           import dropbox
           import os
 
           ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+          FILE_NAME = os.getenv("FILE_NAME")
           if not ACCESS_TOKEN:
               raise ValueError("Dropbox Access Token is not set.")
+          if not FILE_NAME:
+              raise ValueError("FILE_NAME environment variable is not set.")
 
           dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          DROPBOX_FILE_PATH = "/Masatsugu Shimizu/emailcrawlerData/500.csv"
-          LOCAL_FILE_PATH = "500.csv"
+          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{FILE_NAME}"
+          LOCAL_FILE_PATH = FILE_NAME
 
           try:
               with open(LOCAL_FILE_PATH, "wb") as f:
                   metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
                   f.write(res.content)
               print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
-              print(f"::set-output name=down_file::{os.path.abspath(LOCAL_FILE_PATH)}")
           except Exception as e:
               print(f"Error downloading file: {e}")
               raise
           EOF
 
-      # Step 5: Debugging step to check files in the directory
+      # Step 6: Debugging step to check files in the directory
       - name: List files in the working directory
         run: |
           echo "Listing all files in the working directory:"
           ls -la
-          echo "Checking if 500.csv exists:"
-          [ -f 500.csv ] && echo "File 500.csv exists" || echo "File 500.csv does not exist"
+          echo "Checking if the file exists:"
+          [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-      # Step 6: Run Email to URL Script with correct file path
+      # Step 7: Run Email to URL Script with dynamic file name
       - name: Run Email to URL Script
         env:
-          FILE_PATH: 500.csv  # Pass the downloaded file's path
-        run: |
-          python - <<EOF
-          import pandas as pd
-          import os
-
-          # Get the file path from the environment
-          file_path = os.getenv("FILE_PATH")
-          if not file_path:
-              raise ValueError("FILE_PATH environment variable is not set.")
-
-          print(f"Processing file at: {file_path}")
-
-          # Load the CSV file
-          df = pd.read_csv(file_path)
-
-          # Function to generate URLs
-          def generate_url(email):
-              domain = email.split('@')[-1]
-              return f"https://www.{domain}"
-
-          # Process the "Email" column
-          def process_emails(df):
-              results = []
-              excluded_domains = ['gmail.com', 'outlook.com', 'yahoo.com', 'icloud.com', 'hotmail.com', 'bigpond.com', 'netspace.net.au']
-              for email in df['Email']:
-                  if any(domain in email for domain in excluded_domains):
-                      results.append(None)
-                  else:
-                      results.append(generate_url(email))
-              return results
-
-          # Add 'Website' column to DataFrame
-          df['Website'] = process_emails(df)
-
-          # Save updated DataFrame
-          output_file = "500_updated.csv"
-          df.to_csv(output_file, index=False)
-          print(f"Processed file saved as: {output_file}")
-          EOF
+          FILE_PATH: ${{ env.FILE_NAME }}
+        run: python EmailToURL.py
