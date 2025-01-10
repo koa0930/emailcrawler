@@ -28,7 +28,6 @@ jobs:
 
       # Step 4: Download file from Dropbox
       - name: Download file from Dropbox
-        id: download
         env:
           DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
         run: |
@@ -49,6 +48,7 @@ jobs:
                   metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
                   f.write(res.content)
               print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
+              print(f"::set-output name=down_file::{os.path.abspath(LOCAL_FILE_PATH)}")
           except Exception as e:
               print(f"Error downloading file: {e}")
               raise
@@ -62,6 +62,46 @@ jobs:
           echo "Checking if 500.csv exists:"
           [ -f 500.csv ] && echo "File 500.csv exists" || echo "File 500.csv does not exist"
 
-      # Step 6: Run Email to URL Script
+      # Step 6: Run Email to URL Script with correct file path
       - name: Run Email to URL Script
-        run: python EmailToURL.py
+        env:
+          FILE_PATH: 500.csv  # Pass the downloaded file's path
+        run: |
+          python - <<EOF
+          import pandas as pd
+          import os
+
+          # Get the file path from the environment
+          file_path = os.getenv("FILE_PATH")
+          if not file_path:
+              raise ValueError("FILE_PATH environment variable is not set.")
+
+          print(f"Processing file at: {file_path}")
+
+          # Load the CSV file
+          df = pd.read_csv(file_path)
+
+          # Function to generate URLs
+          def generate_url(email):
+              domain = email.split('@')[-1]
+              return f"https://www.{domain}"
+
+          # Process the "Email" column
+          def process_emails(df):
+              results = []
+              excluded_domains = ['gmail.com', 'outlook.com', 'yahoo.com', 'icloud.com', 'hotmail.com', 'bigpond.com', 'netspace.net.au']
+              for email in df['Email']:
+                  if any(domain in email for domain in excluded_domains):
+                      results.append(None)
+                  else:
+                      results.append(generate_url(email))
+              return results
+
+          # Add 'Website' column to DataFrame
+          df['Website'] = process_emails(df)
+
+          # Save updated DataFrame
+          output_file = "500_updated.csv"
+          df.to_csv(output_file, index=False)
+          print(f"Processed file saved as: {output_file}")
+          EOF
