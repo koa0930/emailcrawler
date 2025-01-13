@@ -1,4 +1,4 @@
-name: Email Crawler and Cleaner Workflow
+name: Dynamic Email Scraper Workflow
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         default: '500.csv'
 
 jobs:
-  email-crawler-cleaner:
+  email-scraping:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas scrapy validators dropbox
 
-      # Step 4: Set file name
+      # Step 4: Set up dynamic file name
       - name: Set file name
         id: set-file-name
         run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
@@ -73,47 +73,26 @@ jobs:
           echo "Checking if the file exists:"
           [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-      # Step 7: Run the Email Crawler
-      - name: Run Email Crawler
+      # Step 7: Run Email to URL Script with dynamic file name
+      - name: Run Email to URL Script
         env:
-          FILE_NAME: ${{ env.FILE_NAME }}
-        run: |
-          scrapy runspider EmailToURL.py -a input_file=${{ env.FILE_NAME }}
-
-      # Step 8: Run the Cleaner Script
-      - name: Run Cleaner Script
-        env:
-          FILE_NAME: ${{ env.FILE_NAME }}
-        run: |
-          python clean.py
-
-      # Step 9: Rename and Upload Cleaned File to Dropbox
-      - name: Rename and Upload Cleaned File to Dropbox
-        env:
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
-          FILE_NAME: ${{ env.FILE_NAME }}
+          FILE_PATH: ./${{ env.FILE_NAME }}
         run: |
           python - <<EOF
-          import dropbox
           import os
+          import pandas as pd
 
-          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
-          FILE_NAME = os.getenv("FILE_NAME")
-          CLEANED_FILE = f"./{FILE_NAME.split('.')[0]}_updated.csv"
-          RENAMED_FILE = f"./{FILE_NAME.split('.')[0]}_githubaction.csv"
+          # Get the file path from the environment
+          file_path = os.getenv("FILE_PATH")
+          if not file_path:
+              raise ValueError("FILE_PATH environment variable is not set.")
+          print(f"Processing file: {file_path}")
 
-          if not os.path.exists(CLEANED_FILE):
-              raise FileNotFoundError(f"Cleaned file {CLEANED_FILE} does not exist.")
-
-          # Rename the cleaned file
-          os.rename(CLEANED_FILE, RENAMED_FILE)
-          print(f"Renamed cleaned file to {RENAMED_FILE}")
-
-          # Upload the renamed file back to Dropbox
-          dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{os.path.basename(RENAMED_FILE)}"
-
-          with open(RENAMED_FILE, "rb") as f:
-              dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
-              print(f"Uploaded renamed file to {DROPBOX_FILE_PATH}")
+          # Load and process the CSV
+          try:
+              df = pd.read_csv(file_path)
+              print(df.head())  # Print the first few rows for debugging
+          except Exception as e:
+              print(f"Error reading the file: {e}")
+              raise
           EOF
