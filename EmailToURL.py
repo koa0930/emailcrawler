@@ -1,8 +1,10 @@
 import pandas as pd
 import os
 
-# Define the file path
-file_path = r"C:\Users\koage\Dropbox\Masatsugu Shimizu\emailcrawlerData\500.csv"
+# Fetch file path from the environment
+file_path = os.getenv("FILE_PATH")
+if not file_path:
+    raise ValueError("FILE_PATH environment variable is not set.")
 
 # Load the CSV file
 df = pd.read_csv(file_path)
@@ -40,9 +42,8 @@ if 'Website' not in df.columns:
 # Apply the function and get the success count
 df['Website'], success_count = process_emails(df)
 
-# Save the updated DataFrame to a new CSV file
-output_path = os.path.join(os.path.dirname(file_path), '500.csv')
-df.to_csv(output_path, index=False)
+# Save the updated DataFrame to the same file
+df.to_csv(file_path, index=False)
 
-print(f"Processed file saved to {output_path}")
+print(f"Processed file saved to {file_path}")
 print(f"Number of emails successfully converted to URLs: {success_count}")

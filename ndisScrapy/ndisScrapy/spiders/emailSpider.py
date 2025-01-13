@@ -1,10 +1,9 @@
-
 import scrapy
 import pandas as pd
 import re
 import validators
-from urllib.parse import urljoin
 import os
+
 
 class CombinedSpider(scrapy.Spider):
     name = "combined_spider"
@@ -28,7 +27,7 @@ class CombinedSpider(scrapy.Spider):
         "JobOrJobs": ["job", "jobs", "job opportunities", "career opportunities"],
         "CareerOrCareers": ["career", "careers", "career paths", "career growth"],
         "WorkPlacement": ["work placement", "placement opportunities", "placement program"],
-        "Employment": ["employment", "employments", "employment opportunities"]
+        "Employment": ["employment", "employments", "employment opportunities"],
     }
 
     def __init__(self, *args, **kwargs):
@@ -37,11 +36,16 @@ class CombinedSpider(scrapy.Spider):
         self.data = None
 
     def start_requests(self):
-        input_file = os.path.join(r"C:\Users\koage\Dropbox\Masatsugu Shimizu\emailcrawlerData\500.csv")
+        # Fetch the file path from the environment
+        input_file = os.getenv("FILE_PATH")
+        if not input_file:
+            raise ValueError("FILE_PATH environment variable is not set.")
+
         if not os.path.exists(input_file):
             self.logger.error(f"Input file not found: {input_file}")
             return
 
+        # Load the input data
         self.data = pd.read_csv(input_file)
         self.data.columns = self.data.columns.str.strip()
         self.results = self.data.copy()
@@ -158,8 +162,9 @@ class CombinedSpider(scrapy.Spider):
 
     def closed(self, reason):
         """Save results to CSV on spider close."""
-        output_file = os.path.join(r"C:\Users\koage\Dropbox\Masatsugu Shimizu\emailcrawlerData\500.csv")
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        output_file = os.getenv("FILE_PATH")
+        if not output_file:
+            raise ValueError("FILE_PATH environment variable is not set.")
 
         if self.results is not None and not self.results.empty:
             try:
