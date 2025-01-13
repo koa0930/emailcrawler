@@ -1,12 +1,12 @@
 name: Dynamic Email Scraper Workflow
 
 on:
-  workflow_dispatch: # Allows manual trigger with custom inputs
+  workflow_dispatch:
     inputs:
       file_name:
         description: 'Name of the file to process from Dropbox'
         required: false
-        default: '500.csv'  # Default file name
+        default: '500.csv'
 
 jobs:
   email-scraping:
@@ -53,10 +53,9 @@ jobs:
 
           dbx = dropbox.Dropbox(ACCESS_TOKEN)
           DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{FILE_NAME}"
-          LOCAL_FILE_PATH = f"./data/{FILE_NAME}"
+          LOCAL_FILE_PATH = f"./{FILE_NAME}"
 
           try:
-              os.makedirs("./data", exist_ok=True)
               with open(LOCAL_FILE_PATH, "wb") as f:
                   metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
                   f.write(res.content)
@@ -71,13 +70,29 @@ jobs:
         run: |
           echo "Listing all files in the working directory:"
           ls -la
-          echo "Checking if the file exists in the ./data directory:"
-          ls -la ./data
           echo "Checking if the file exists:"
-          [ -f "./data/${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists in ./data" || echo "File ${{ env.FILE_NAME }} does not exist"
+          [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
       # Step 7: Run Email to URL Script with dynamic file name
       - name: Run Email to URL Script
         env:
-          FILE_PATH: ./data/${{ env.FILE_NAME }}
-        run: python EmailToURL.py
+          FILE_PATH: ./${{ env.FILE_NAME }}
+        run: |
+          python - <<EOF
+          import os
+          import pandas as pd
+
+          # Get the file path from the environment
+          file_path = os.getenv("FILE_PATH")
+          if not file_path:
+              raise ValueError("FILE_PATH environment variable is not set.")
+          print(f"Processing file: {file_path}")
+
+          # Load and process the CSV
+          try:
+              df = pd.read_csv(file_path)
+              print(df.head())  # Print the first few rows for debugging
+          except Exception as e:
+              print(f"Error reading the file: {e}")
+              raise
+          EOF
