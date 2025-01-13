@@ -65,26 +65,19 @@ jobs:
               raise
           EOF
 
-      # Step 6: Debugging step to check files in the directory
-      - name: List files in the working directory
+      # Step 6: Run the email-to-URL script
+      - name: Run Email to URL Script
         run: |
-          echo "Listing all files in the working directory:"
-          ls -la
-          echo "Checking if the file exists:"
-          [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
+          python EmailToURL.py
 
       # Step 7: Run the Email Crawler
       - name: Run Email Crawler
-        env:
-          FILE_NAME: ${{ env.FILE_NAME }}
         run: |
           cd ndisScrapy
           scrapy crawl combined_spider
 
       # Step 8: Run the Cleaner Script
       - name: Run Cleaner Script
-        env:
-          FILE_NAME: ${{ env.FILE_NAME }}
         run: |
           python clean.py
 
@@ -107,9 +100,4 @@ jobs:
               raise FileNotFoundError(f"Updated file {RENAMED_FILE} does not exist.")
 
           dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{UPDATED_FILE_NAME}"
-
-          with open(RENAMED_FILE, "rb") as f:
-              dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
-              print(f"Uploaded updated file to {DROPBOX_FILE_PATH}")
-          EOF
+          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{UPDATE
