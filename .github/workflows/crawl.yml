@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas scrapy validators dropbox
 
-      # Step 4: Set up dynamic file name
+      # Step 4: Set file name
       - name: Set file name
         id: set-file-name
         run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
@@ -73,26 +73,43 @@ jobs:
           echo "Checking if the file exists:"
           [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-      # Step 7: Run Email to URL Script with dynamic file name
-      - name: Run Email to URL Script
+      # Step 7: Run the Email Crawler
+      - name: Run Email Crawler
         env:
-          FILE_PATH: ./${{ env.FILE_NAME }}
+          FILE_NAME: ${{ env.FILE_NAME }}
+        run: |
+          cd ndisScrapy
+          scrapy crawl combined_spider
+
+      # Step 8: Run the Cleaner Script
+      - name: Run Cleaner Script
+        env:
+          FILE_NAME: ${{ env.FILE_NAME }}
+        run: |
+          python clean.py
+
+      # Step 9: Upload updated file back to Dropbox
+      - name: Upload updated file to Dropbox
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          FILE_NAME: ${{ env.FILE_NAME }}
         run: |
           python - <<EOF
+          import dropbox
           import os
-          import pandas as pd
 
-          # Get the file path from the environment
-          file_path = os.getenv("FILE_PATH")
-          if not file_path:
-              raise ValueError("FILE_PATH environment variable is not set.")
-          print(f"Processing file: {file_path}")
+          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+          FILE_NAME = os.getenv("FILE_NAME")
+          UPDATED_FILE_NAME = f"{FILE_NAME.split('.')[0]}_updated.csv"
+          RENAMED_FILE = f"./{UPDATED_FILE_NAME}"
 
-          # Load and process the CSV
-          try:
-              df = pd.read_csv(file_path)
-              print(df.head())  # Print the first few rows for debugging
-          except Exception as e:
-              print(f"Error reading the file: {e}")
-              raise
+          if not os.path.exists(RENAMED_FILE):
+              raise FileNotFoundError(f"Updated file {RENAMED_FILE} does not exist.")
+
+          dbx = dropbox.Dropbox(ACCESS_TOKEN)
+          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{UPDATED_FILE_NAME}"
+
+          with open(RENAMED_FILE, "rb") as f:
+              dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
+              print(f"Uploaded updated file to {DROPBOX_FILE_PATH}")
           EOF
