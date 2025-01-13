@@ -8,8 +8,6 @@ on:
         required: false
         default: '500.csv'  # Default file name
 
-  schedule:
-    - cron: '0 0 * * *' # Run daily at midnight UTC
 
 jobs:
   email-scraping:
