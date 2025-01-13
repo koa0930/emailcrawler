@@ -73,10 +73,8 @@ jobs:
           echo "Checking if the file exists:"
           [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-      # Step 7: Run the Email to URL Script
+      # Step 7: Run Email to URL Script
       - name: Run Email to URL Script
-        env:
-          FILE_PATH: ./${{ env.FILE_NAME }}
         run: |
           python EmailToURL.py
 
@@ -88,8 +86,6 @@ jobs:
 
       # Step 9: Run the Cleaner Script
       - name: Run Cleaner Script
-        env:
-          FILE_NAME: ${{ env.FILE_NAME }}
         run: |
           python clean.py
 
