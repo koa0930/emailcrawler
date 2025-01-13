@@ -1,4 +1,4 @@
-name: Email Crawler and Cleaner Workflow
+name: Email Crawler Workflow
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         default: '500.csv'
 
 jobs:
-  email-crawler-cleaner:
+  email-crawler:
     runs-on: ubuntu-latest
 
     steps:
@@ -73,47 +73,19 @@ jobs:
           echo "Checking if the file exists:"
           [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-      # Step 7: Run the Email Crawler
+      # Step 7: Create a symbolic link for the input file to match the hardcoded path
+      - name: Create symbolic link for input file
+        run: |
+          mkdir -p "/home/runner/work/C:/Users/koage/Dropbox/Masatsugu Shimizu/emailcrawlerData"
+          ln -s "$(pwd)/${{ env.FILE_NAME }}" "/home/runner/work/C:/Users/koage/Dropbox/Masatsugu Shimizu/emailcrawlerData/${{ env.FILE_NAME }}"
+
+      # Step 8: Run the Email Crawler
       - name: Run Email Crawler
-        env:
-          FILE_NAME: ${{ env.FILE_NAME }}
         run: |
-          scrapy runspider EmailToURL.py -a input_file=${{ env.FILE_NAME }}
+          scrapy runspider EmailToURL.py
 
-      # Step 8: Run the Cleaner Script
-      - name: Run Cleaner Script
-        env:
-          FILE_NAME: ${{ env.FILE_NAME }}
+      # Step 9: Debugging step to check the generated files
+      - name: List all generated files
         run: |
-          python clean.py
-
-      # Step 9: Rename and Upload Cleaned File to Dropbox
-      - name: Rename and Upload Cleaned File to Dropbox
-        env:
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
-          FILE_NAME: ${{ env.FILE_NAME }}
-        run: |
-          python - <<EOF
-          import dropbox
-          import os
-
-          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
-          FILE_NAME = os.getenv("FILE_NAME")
-          CLEANED_FILE = f"./{FILE_NAME.split('.')[0]}_updated.csv"
-          RENAMED_FILE = f"./{FILE_NAME.split('.')[0]}_githubaction.csv"
-
-          if not os.path.exists(CLEANED_FILE):
-              raise FileNotFoundError(f"Cleaned file {CLEANED_FILE} does not exist.")
-
-          # Rename the cleaned file
-          os.rename(CLEANED_FILE, RENAMED_FILE)
-          print(f"Renamed cleaned file to {RENAMED_FILE}")
-
-          # Upload the renamed file back to Dropbox
-          dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{os.path.basename(RENAMED_FILE)}"
-
-          with open(RENAMED_FILE, "rb") as f:
-              dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
-              print(f"Uploaded renamed file to {DROPBOX_FILE_PATH}")
-          EOF
+          echo "Listing all files in the working directory:"
+          ls -la
