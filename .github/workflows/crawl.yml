@@ -1,4 +1,4 @@
-name: Email Crawler Workflow
+name: Dynamic Email Scraper Workflow
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         default: '500.csv'
 
 jobs:
-  email-crawler:
+  email-scraping:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas scrapy validators dropbox
 
-      # Step 4: Set file name
+      # Step 4: Set up dynamic file name
       - name: Set file name
         id: set-file-name
         run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
@@ -73,19 +73,26 @@ jobs:
           echo "Checking if the file exists:"
           [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-      # Step 7: Create a symbolic link for the input file to match the hardcoded path
-      - name: Create symbolic link for input file
+      # Step 7: Run Email to URL Script with dynamic file name
+      - name: Run Email to URL Script
+        env:
+          FILE_PATH: ./${{ env.FILE_NAME }}
         run: |
-          mkdir -p "/home/runner/work/C:/Users/koage/Dropbox/Masatsugu Shimizu/emailcrawlerData"
-          ln -s "$(pwd)/${{ env.FILE_NAME }}" "/home/runner/work/C:/Users/koage/Dropbox/Masatsugu Shimizu/emailcrawlerData/${{ env.FILE_NAME }}"
+          python - <<EOF
+          import os
+          import pandas as pd
 
-      # Step 8: Run the Email Crawler
-      - name: Run Email Crawler
-        run: |
-          scrapy runspider EmailToURL.py
+          # Get the file path from the environment
+          file_path = os.getenv("FILE_PATH")
+          if not file_path:
+              raise ValueError("FILE_PATH environment variable is not set.")
+          print(f"Processing file: {file_path}")
 
-      # Step 9: Debugging step to check the generated files
-      - name: List all generated files
-        run: |
-          echo "Listing all files in the working directory:"
-          ls -la
+          # Load and process the CSV
+          try:
+              df = pd.read_csv(file_path)
+              print(df.head())  # Print the first few rows for debugging
+          except Exception as e:
+              print(f"Error reading the file: {e}")
+              raise
+          EOF
