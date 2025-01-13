@@ -1,98 +1,124 @@
-  name: Dynamic Email Scraper Workflow
+name: Dynamic Email Scraper Workflow
 
-  on:
-    workflow_dispatch:
-      inputs:
-        file_name:
-          description: 'Name of the file to process from Dropbox'
-          required: false
-          default: '500.csv'
+on:
+  workflow_dispatch:
+    inputs:
+      file_name:
+        description: 'Name of the file to process from Dropbox'
+        required: false
+        default: '500.csv'
 
-  jobs:
-    email-scraping:
-      runs-on: ubuntu-latest
+jobs:
+  email-scraping:
+    runs-on: ubuntu-latest
 
-      steps:
-        # Step 1: Checkout repository code
-        - name: Checkout code
-          uses: actions/checkout@v3
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-        # Step 2: Set up Python environment
-        - name: Set up Python
-          uses: actions/setup-python@v4
-          with:
-            python-version: '3.10'
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-        # Step 3: Install dependencies
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install pandas scrapy validators dropbox
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas scrapy validators dropbox
 
-        # Step 4: Set up dynamic file name
-        - name: Set file name
-          id: set-file-name
-          run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
+      # Step 4: Set up dynamic file name
+      - name: Set file name
+        id: set-file-name
+        run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
 
-        # Step 5: Download file from Dropbox
-        - name: Download file from Dropbox
-          env:
-            DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
-            FILE_NAME: ${{ env.FILE_NAME }}
-          run: |
-            python - <<EOF
-            import dropbox
-            import os
+      # Step 5: Download file from Dropbox
+      - name: Download file from Dropbox
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          FILE_NAME: ${{ env.FILE_NAME }}
+        run: |
+          python - <<EOF
+          import dropbox
+          import os
 
-            ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
-            FILE_NAME = os.getenv("FILE_NAME")
-            if not ACCESS_TOKEN:
-                raise ValueError("Dropbox Access Token is not set.")
-            if not FILE_NAME:
-                raise ValueError("FILE_NAME environment variable is not set.")
+          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+          FILE_NAME = os.getenv("FILE_NAME")
+          if not ACCESS_TOKEN:
+              raise ValueError("Dropbox Access Token is not set.")
+          if not FILE_NAME:
+              raise ValueError("FILE_NAME environment variable is not set.")
 
-            dbx = dropbox.Dropbox(ACCESS_TOKEN)
-            DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{FILE_NAME}"
-            LOCAL_FILE_PATH = f"./{FILE_NAME}"
+          dbx = dropbox.Dropbox(ACCESS_TOKEN)
+          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{FILE_NAME}"
+          LOCAL_FILE_PATH = f"./{FILE_NAME}"
 
-            try:
-                with open(LOCAL_FILE_PATH, "wb") as f:
-                    metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
-                    f.write(res.content)
-                print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
-            except Exception as e:
-                print(f"Error downloading file: {e}")
-                raise
-            EOF
+          try:
+              with open(LOCAL_FILE_PATH, "wb") as f:
+                  metadata, res = dbx.files_download(DROPBOX_FILE_PATH)
+                  f.write(res.content)
+              print(f"Downloaded {DROPBOX_FILE_PATH} to {LOCAL_FILE_PATH}")
+          except Exception as e:
+              print(f"Error downloading file: {e}")
+              raise
+          EOF
 
-        # Step 6: Debugging step to check files in the directory
-        - name: List files in the working directory
-          run: |
-            echo "Listing all files in the working directory:"
-            ls -la
-            echo "Checking if the file exists:"
-            [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
+      # Step 6: Debugging step to check files in the directory
+      - name: List files in the working directory
+        run: |
+          echo "Listing all files in the working directory:"
+          ls -la
+          echo "Checking if the file exists:"
+          [ -f "${{ env.FILE_NAME }}" ] && echo "File ${{ env.FILE_NAME }} exists" || echo "File ${{ env.FILE_NAME }} does not exist"
 
-        # Step 7: Run Email to URL Script with dynamic file name
-        - name: Run Email to URL Script
-          env:
-            FILE_PATH: ./${{ env.FILE_NAME }}
-          run: |
-            python - <<EOF
-            import os
-            import pandas as pd
+      # Step 7: Set FILE_PATH for compatibility with local scripts
+      - name: Set FILE_PATH environment variable
+        run: echo "FILE_PATH=$(pwd)/${{ env.FILE_NAME }}" >> $GITHUB_ENV
 
-            # Get the file path from the environment
-            file_path = os.getenv("FILE_PATH")
-            if not file_path:
-                raise ValueError("FILE_PATH environment variable is not set.")
-            print(f"Processing file: {file_path}")
+      # Step 8: Run Email to URL Script
+      - name: Run Email to URL Script
+        env:
+          FILE_PATH: ${{ env.FILE_PATH }}
+        run: |
+          python EmailToURL.py
 
-            # Load and process the CSV
-            try:
-                df = pd.read_csv(file_path)
-                print(df.head())  # Print the first few rows for debugging
-            except Exception as e:
-                print(f"Error reading the file: {e}")
-                raise
-            EOF
+      # Step 9: Run the Email Crawler
+      - name: Run Email Crawler
+        run: |
+          cd ndisScrapy
+          scrapy crawl combined_spider
+
+      # Step 10: Run the Cleaner Script
+      - name: Run Cleaner Script
+        env:
+          FILE_PATH: ${{ env.FILE_PATH }}
+        run: |
+          python clean.py
+
+      # Step 11: Upload updated file back to Dropbox
+      - name: Upload updated file to Dropbox
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          FILE_NAME: ${{ env.FILE_NAME }}
+        run: |
+          python - <<EOF
+          import dropbox
+          import os
+
+          ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+          FILE_NAME = os.getenv("FILE_NAME")
+          UPDATED_FILE_NAME = f"{FILE_NAME.split('.')[0]}_updated.csv"
+          RENAMED_FILE = f"./{UPDATED_FILE_NAME}"
+
+          if not os.path.exists(RENAMED_FILE):
+              raise FileNotFoundError(f"Updated file {RENAMED_FILE} does not exist.")
+
+          dbx = dropbox.Dropbox(ACCESS_TOKEN)
+          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{UPDATED_FILE_NAME}"
+
+          with open(RENAMED_FILE, "rb") as f:
+              dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
+              print(f"Uploaded updated file to {DROPBOX_FILE_PATH}")
+          EOF
