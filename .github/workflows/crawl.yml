@@ -6,7 +6,7 @@ on:
       file_name:
         description: 'Name of the file to process from Dropbox'
         required: false
-        default: '500.csv'
+        default: '100.csv'
 
 jobs:
   email-scraping:
@@ -32,7 +32,7 @@ jobs:
       # Step 4: Set up dynamic file name
       - name: Set file name
         id: set-file-name
-        run: echo "FILE_NAME=${{ github.event.inputs.file_name || '500.csv' }}" >> $GITHUB_ENV
+        run: echo "FILE_NAME=${{ github.event.inputs.file_name || '100.csv' }}" >> $GITHUB_ENV
 
       # Step 5: Download file from Dropbox
       - name: Download file from Dropbox
@@ -97,7 +97,7 @@ jobs:
         run: |
           python clean.py
 
-      # Step 11: Upload updated file back to Dropbox
+      # Step 11: Upload updated file back to Dropbox with renamed file
       - name: Upload updated file to Dropbox
         env:
           DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
@@ -106,18 +106,24 @@ jobs:
           python - <<EOF
           import dropbox
           import os
+          import shutil
 
           ACCESS_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
           FILE_NAME = os.getenv("FILE_NAME")
           UPDATED_FILE_PATH = os.getenv("FILE_PATH")
+          # Append '_githubaction' to the original filename
+          RENAMED_FILE_PATH = UPDATED_FILE_PATH.replace(".csv", "_githubaction.csv")
 
           if not os.path.exists(UPDATED_FILE_PATH):
               raise FileNotFoundError(f"Updated file {UPDATED_FILE_PATH} does not exist.")
 
-          dbx = dropbox.Dropbox(ACCESS_TOKEN)
-          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{FILE_NAME}"
+          # Rename the file
+          shutil.move(UPDATED_FILE_PATH, RENAMED_FILE_PATH)
 
-          with open(UPDATED_FILE_PATH, "rb") as f:
+          dbx = dropbox.Dropbox(ACCESS_TOKEN)
+          DROPBOX_FILE_PATH = f"/Masatsugu Shimizu/emailcrawlerData/{os.path.basename(RENAMED_FILE_PATH)}"
+
+          with open(RENAMED_FILE_PATH, "rb") as f:
               dbx.files_upload(f.read(), DROPBOX_FILE_PATH, mode=dropbox.files.WriteMode("overwrite"))
               print(f"Uploaded updated file to {DROPBOX_FILE_PATH}")
           EOF
